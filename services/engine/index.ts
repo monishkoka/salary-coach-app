@@ -1,0 +1,10 @@
+export { generateBlueprint } from './blueprint';
+export type { BlueprintResult } from './blueprint';
+export { computeScores, explainHealth, healthImprovementPlan } from './scores';
+export { analyzeAffordability } from './affordability';
+export type { AffordabilityResult } from './affordability';
+export { evaluateDecision } from './decision';
+export { buildMoneyGps, simulateScenarios } from './projection';
+export { buildActionPlan } from './actionPlan';
+export { generateInsights } from './insights';
+export { buildSnapshot, buildMemoryNarrative } from './memory';
