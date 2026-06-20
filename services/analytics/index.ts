@@ -9,15 +9,22 @@ type EventName =
   | 'app_open'
   | 'signup'
   | 'login'
+  | 'logout'
   | 'onboarding_step_completed'
   | 'onboarding_completed'
   | 'blueprint_generated'
   | 'recommendation_executed'
+  // Coach funnel: attempt → success | failure, plus quota.
   | 'coach_message_sent'
+  | 'coach_message_succeeded'
+  | 'coach_message_failed'
+  | 'coach_quota_reached'
   | 'goal_created'
   | 'goal_updated'
+  // Monetization funnel.
   | 'paywall_viewed'
   | 'subscribe_started'
+  | 'subscribe_completed'
   // Upgrade: forward-looking engagement surfaces.
   | 'money_gps_viewed'
   | 'future_self_simulated'

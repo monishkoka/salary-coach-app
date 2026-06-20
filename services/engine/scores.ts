@@ -18,6 +18,7 @@ import type {
 } from '@/types';
 import { clamp } from '@/utils/finance';
 import { addMonthsISO } from '@/utils/date';
+import { essentialMonthlyPaise } from './constants';
 
 const HEALTH_WEIGHTS = {
   savingsRate: 0.3,
@@ -68,7 +69,8 @@ export function computeScores(
 function healthSubScores(context: AIContext): HealthSubScores {
   const { financials, goals } = context;
   const income = Math.max(1, financials.monthlyIncomePaise);
-  const monthlyEssential = Math.max(1, financials.totalExpensesPaise);
+  // Runway is measured against essential spend, not total — see essentialMonthlyPaise.
+  const monthlyEssential = Math.max(1, essentialMonthlyPaise(context));
 
   // Savings rate: surplus / income. 30%+ is excellent.
   const savingsRatePct = (financials.monthlySurplusPaise / income) * 100;

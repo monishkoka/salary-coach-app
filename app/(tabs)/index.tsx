@@ -22,6 +22,7 @@ import { useBlueprintStore } from '@/store/blueprintStore';
 import { useStreakStore } from '@/store/streakStore';
 import { useFinancialPlan } from '@/hooks/useFinancialPlan';
 import { useHaptics } from '@/hooks/useHaptics';
+import { useScreenView } from '@/hooks/useScreenView';
 import { useTheme } from '@/hooks/useTheme';
 import { formatINR, formatINRCompact } from '@/utils/currency';
 import { daysUntilDayOfMonth } from '@/utils/date';
@@ -32,9 +33,11 @@ export default function Home() {
   const user = useProfileStore((s) => s.user);
   const financials = useProfileStore((s) => s.financials);
   const goals = useProfileStore((s) => s.goals);
+  const expenses = useProfileStore((s) => s.expenses);
   const scores = useProfileStore((s) => s.scores);
   const loaded = useProfileStore((s) => s.loaded);
   const recomputeScores = useProfileStore((s) => s.recomputeScores);
+  const refresh = useProfileStore((s) => s.refresh);
   const blueprint = useBlueprintStore((s) => s.blueprint);
   const generate = useBlueprintStore((s) => s.generate);
   const completed = useBlueprintStore((s) => s.completed);
@@ -44,18 +47,25 @@ export default function Home() {
   const haptics = useHaptics();
   const { colors } = useTheme();
   const [refreshing, setRefreshing] = useState(false);
+  useScreenView('home');
 
   useEffect(() => {
     if (loaded && !blueprint) generate();
   }, [loaded, blueprint, generate]);
 
-  const onRefresh = useCallback(() => {
+  const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    recomputeScores();
-    generate();
     haptics.light();
-    setRefreshing(false);
-  }, [recomputeScores, generate, haptics]);
+    try {
+      // Pull the latest data from the backend (no-op fetch in mock mode), then
+      // recompute scores and regenerate the blueprint off the fresh picture.
+      await refresh();
+      recomputeScores();
+      generate();
+    } finally {
+      setRefreshing(false);
+    }
+  }, [refresh, recomputeScores, generate, haptics]);
 
   if (!loaded || !user || !financials) return <LoadingState label="Loading your finances…" />;
 
@@ -67,6 +77,11 @@ export default function Home() {
   const currentScenario = plan?.scenarios.find((s) => s.id === 'current');
   const projectionPoints = currentScenario?.points.map((p) => p.netWorthPaise) ?? [];
   const topAction = plan?.actionPlan.items[0];
+
+  // Emergency runway is measured against essential spend, not total spend.
+  const essentialMonthly =
+    expenses.filter((e) => e.isEssential).reduce((s, e) => s + e.amountPaise, 0) ||
+    financials.totalExpensesPaise;
 
   return (
     <Screen
@@ -109,7 +124,9 @@ export default function Home() {
                 {isPayday ? '🎉 Payday is here' : daysToPayday !== null ? `Payday in ${daysToPayday} days` : 'Your salary plan'}
               </ThemedText>
               <ThemedText variant="body" style={{ color: '#FFFFFF' }} className="mt-0.5 font-semibold">
-                {isPayday ? "See this month's plan" : `+${formatINRCompact(financials.monthlySurplusPaise)}/mo to allocate`}
+                {isPayday
+                  ? "See this month's plan"
+                  : `${formatINRCompact(financials.monthlySurplusPaise)}/mo surplus to put to work`}
               </ThemedText>
             </View>
             <Ionicons name="arrow-forward-circle" size={28} color="#FFFFFF" />
@@ -288,17 +305,37 @@ export default function Home() {
       <SectionHeader title="Emergency fund" />
       <EmergencyFundCard
         currentPaise={financials.emergencyFundPaise}
-        monthlyEssentialPaise={financials.totalExpensesPaise}
+        monthlyEssentialPaise={essentialMonthly}
         targetMonths={financials.emergencyMonthsTarget}
       />
 
       {/* Goals */}
-      <SectionHeader title="Goals" action={{ label: 'See all', onPress: () => router.push('/(tabs)/goals') }} />
-      <View className="gap-3">
-        {goals.slice(0, 2).map((goal) => (
-          <GoalCard key={goal.id} goal={goal} onPress={() => router.push('/(tabs)/goals')} />
-        ))}
-      </View>
+      <SectionHeader
+        title="Goals"
+        action={goals.length > 0 ? { label: 'See all', onPress: () => router.push('/(tabs)/goals') } : undefined}
+      />
+      {goals.length > 0 ? (
+        <View className="gap-3">
+          {goals.slice(0, 2).map((goal) => (
+            <GoalCard key={goal.id} goal={goal} onPress={() => router.push('/(tabs)/goals')} />
+          ))}
+        </View>
+      ) : (
+        <Card onPress={() => router.push('/(tabs)/goals')}>
+          <View className="flex-row items-center">
+            <ThemedText className="text-2xl">🎯</ThemedText>
+            <View className="ml-3 flex-1">
+              <ThemedText variant="body" className="font-semibold">
+                Set your first goal
+              </ThemedText>
+              <ThemedText variant="caption" tone="secondary" className="mt-0.5">
+                A home, a car, a trip — we'll build the plan to get you there.
+              </ThemedText>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color={colors.textTertiary} />
+          </View>
+        </Card>
+      )}
 
       {/* Coach prompt */}
       <Card className="mt-6 items-center" onPress={() => router.push('/(tabs)/coach')}>

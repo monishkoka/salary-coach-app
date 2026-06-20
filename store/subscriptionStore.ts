@@ -14,6 +14,8 @@ interface SubscriptionState {
   /** Local entitlement switch (real purchase flow plugs in here later). */
   setTier: (tier: SubscriptionTier) => Promise<void>;
   can: (feature: Feature) => boolean;
+  /** Clear the persisted tier and fall back to Free (called on sign-out). */
+  reset: () => Promise<void>;
 }
 
 export const useSubscriptionStore = create<SubscriptionState>((set, get) => ({
@@ -29,10 +31,25 @@ export const useSubscriptionStore = create<SubscriptionState>((set, get) => ({
   },
 
   setTier: async (tier) => {
+    const previous = get().tier;
     await AsyncStorage.setItem(TIER_KEY, tier);
     set({ tier, entitlements: entitlementsFor(tier) });
-    analytics.track('subscribe_started', { tier });
+    // Only fire the conversion event on a genuine upgrade to a paid tier — not on
+    // downgrades or lateral switches (which would pollute the conversion funnel).
+    const RANK: Record<string, number> = { free: 0, pro: 1, premium: 2, enterprise: 3 };
+    if (tier !== 'free' && (RANK[tier] ?? 0) > (RANK[previous] ?? 0)) {
+      analytics.track('subscribe_completed', { tier, from: previous });
+    }
   },
 
   can: (feature) => get().entitlements.features[feature],
+
+  reset: async () => {
+    try {
+      await AsyncStorage.removeItem(TIER_KEY);
+    } catch {
+      // best effort
+    }
+    set({ tier: 'free', entitlements: entitlementsFor('free') });
+  },
 }));

@@ -10,6 +10,7 @@ import { useProfileStore } from '@/store/profileStore';
 import { useMemoryStore } from '@/store/memoryStore';
 import { useFinancialPlan } from '@/hooks/useFinancialPlan';
 import { explainHealth, healthImprovementPlan } from '@/services/engine';
+import { useScreenView } from '@/hooks/useScreenView';
 import { useTheme } from '@/hooks/useTheme';
 import { colorForScore } from '@/constants/theme';
 import { analytics } from '@/services/analytics';
@@ -32,6 +33,7 @@ export default function Insights() {
   const buildNarrative = useMemoryStore((s) => s.narrative);
   const plan = useFinancialPlan();
   const [filter, setFilter] = useState<InsightTheme | 'all'>('all');
+  useScreenView('insights');
 
   useEffect(() => {
     analytics.track('health_breakdown_viewed');

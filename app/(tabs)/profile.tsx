@@ -11,6 +11,7 @@ import { useAuthStore } from '@/store/authStore';
 import { useSubscriptionStore } from '@/store/subscriptionStore';
 import { useThemeStore, type ThemeMode } from '@/store/themeStore';
 import { useTheme } from '@/hooks/useTheme';
+import { useScreenView } from '@/hooks/useScreenView';
 import { formatINR } from '@/utils/currency';
 import { SALARY_DNA } from '@/constants/copy';
 import { config } from '@/constants/config';
@@ -47,6 +48,7 @@ export default function Profile() {
   const tier = useSubscriptionStore((s) => s.tier);
   const mode = useThemeStore((s) => s.mode);
   const setMode = useThemeStore((s) => s.setMode);
+  useScreenView('profile');
 
   const dna = user?.salaryDnaArchetype
     ? SALARY_DNA[user.salaryDnaArchetype as keyof typeof SALARY_DNA]

@@ -67,6 +67,21 @@ export function pendingCount(): number {
 }
 
 /**
+ * Drop every pending and dead-lettered op and wipe them from disk. Called on
+ * sign-out so a previous account's unflushed mutations can never execute under
+ * the next signed-in user on a shared device.
+ */
+export async function clearQueue(): Promise<void> {
+  _queue = [];
+  _loaded = true;
+  try {
+    await AsyncStorage.multiRemove([STORAGE_KEY, DEAD_LETTER_KEY]);
+  } catch {
+    // best effort
+  }
+}
+
+/**
  * Enqueue a mutation for durable, retrying sync. No-ops in mock mode. Triggers a
  * non-blocking flush so writes propagate promptly when online.
  */

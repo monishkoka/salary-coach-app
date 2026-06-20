@@ -13,6 +13,7 @@ import { GoalFormModal } from '@/components/goals/GoalFormModal';
 import { useProfileStore } from '@/store/profileStore';
 import { useSubscriptionStore } from '@/store/subscriptionStore';
 import { useHaptics } from '@/hooks/useHaptics';
+import { useScreenView } from '@/hooks/useScreenView';
 import { useTheme } from '@/hooks/useTheme';
 import { analytics } from '@/services/analytics';
 import { formatINRCompact } from '@/utils/currency';
@@ -45,6 +46,7 @@ export default function Goals() {
   const removeGoal = useProfileStore((s) => s.removeGoal);
   const maxGoals = useSubscriptionStore((s) => s.entitlements.maxActiveGoals);
   const haptics = useHaptics();
+  useScreenView('goals');
 
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<Goal | null>(null);
@@ -141,7 +143,8 @@ export default function Goals() {
                         Monthly contribution
                       </ThemedText>
                       <ThemedText variant="caption">
-                        {formatINRCompact(goal.monthlyContributionPaise)}
+                        {formatINRCompact(baseContribution(goal))}
+                        {goal.monthlyContributionPaise <= 0 ? ' (suggested)' : ''}
                       </ThemedText>
                     </View>
                     <View className="mt-1 flex-row justify-between">
@@ -155,11 +158,15 @@ export default function Goals() {
                     {goal.probabilityOfSuccess != null ? (
                       <View className="mt-1 flex-row justify-between">
                         <ThemedText variant="caption" tone="secondary">
-                          Probability of success
+                          Likelihood on track
                         </ThemedText>
                         <ThemedText variant="caption">{goal.probabilityOfSuccess}%</ThemedText>
                       </View>
                     ) : null}
+                    <ThemedText variant="caption" tone="tertiary" className="mt-2">
+                      Estimate assumes a {goal.monthlyContributionPaise <= 0 ? 'suggested ' : ''}contribution of{' '}
+                      {formatINRCompact(baseContribution(goal))}/mo compounding at ~11% p.a. Actual results vary with markets and your contributions.
+                    </ThemedText>
                     {(() => {
                       const { extra, monthsSooner } = speedup(goal, months);
                       if (monthsSooner < 1) return null;

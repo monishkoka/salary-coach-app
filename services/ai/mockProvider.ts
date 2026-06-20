@@ -99,25 +99,58 @@ export class MockProvider implements AIProvider {
 
     // Invest amount intent --------------------------------------------------
     if (/(how much).*(invest|save|sip)/.test(last)) {
-      const suggested = Math.round(ctx.financials.monthlySurplusPaise * 0.65);
+      // Ground the figure in the Money GPS recommended route — an engine-computed,
+      // explainable number — rather than inventing a share of surplus.
+      const gps = buildMoneyGps(ctx);
+      const suggested = gps.recommended.monthlyInvestPaise;
+      const income = Math.max(1, ctx.financials.monthlyIncomePaise);
+      const ratePct = Math.round((suggested / income) * 100);
+      const vehicles =
+        ctx.profile.taxRegime === 'old'
+          ? 'index funds plus ELSS and PPF (for 80C tax relief)'
+          : 'low-cost index funds with some debt funds for stability';
       return {
-        content: `Based on your ${formatINR(
-          ctx.financials.monthlySurplusPaise,
-        )} monthly surplus, aim to invest about ${formatINR(
+        content: `On your recommended route I'd aim for about ${formatINR(
           suggested,
-        )} each month — roughly 65% of your surplus. Keep the rest flexible for goals and life. For your ${
+        )} a month into investments — roughly ${ratePct}% of your income. That keeps your essentials and emergency buffer intact while putting your surplus to work. For your ${
           ctx.profile.riskProfile
-        } profile, a mix of index funds and ${
-          ctx.profile.taxRegime === 'old' ? 'ELSS (for 80C) and PPF' : 'debt funds'
-        } fits well. (Educational guidance, not regulated advice.)`,
+        } profile, ${vehicles} fit well.\n\nWhy this number: it comes straight from your Money GPS, balanced against your goals and safety net — not a generic rule of thumb. This is educational guidance, not SEBI-registered advice.`,
+        attachments: [
+          {
+            type: 'cta',
+            title: 'Recommended monthly investing',
+            data: {
+              'Suggested SIP': formatINR(suggested),
+              'Share of income': `${ratePct}%`,
+              'Based on': 'Your Money GPS recommended route',
+            },
+          },
+        ],
+        toolName: 'recommend_investing',
       };
     }
 
     // Vacation intent -------------------------------------------------------
     if (/vacation|trip|travel|holiday/.test(last)) {
       const cost = extractCost(last) ?? 15000000;
-      const d = evaluateDecision(ctx, 'this vacation', cost, 'cash');
-      return { content: d.headline };
+      const financing = /emi|loan|instal/.test(last) ? 'emi' : 'cash';
+      const d = evaluateDecision(ctx, 'this trip', cost, financing);
+      const impactLines = d.impacts
+        .filter((i) => i.severity !== 'neutral')
+        .map((i) => `• ${i.label}: ${i.detail}`)
+        .join('\n');
+      const why = `\n\nWhy I'm ${d.confidence}% confident: ${d.trust.reasoning[d.trust.reasoning.length - 1]}`;
+      return {
+        content: `${d.headline}${impactLines ? `\n\n${impactLines}` : ''}${why}`,
+        attachments: [
+          {
+            type: 'affordability',
+            title: `Decision: a trip — ${verdictLabel(d.verdict)} (${d.confidence}%)`,
+            data: d.details,
+          },
+        ],
+        toolName: 'evaluate_decision',
+      };
     }
 
     // Fallback: lead like a CFO with the single most important next move. ----

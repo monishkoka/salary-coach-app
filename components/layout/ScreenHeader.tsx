@@ -24,7 +24,7 @@ export function ScreenHeader({ title, subtitle, onBack, showBack = true }: Scree
           accessibilityRole="button"
           accessibilityLabel="Go back"
           className="rounded-pill"
-          style={{ width: 38, height: 38, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surfaceAlt }}
+          style={{ width: 44, height: 44, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surfaceAlt }}
         >
           <Ionicons name="chevron-back" size={22} color={colors.textPrimary} />
         </Pressable>

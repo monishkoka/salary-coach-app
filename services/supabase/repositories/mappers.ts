@@ -135,6 +135,47 @@ export function rowToGoal(r: Row): Goal {
 }
 
 // --- Expense / Investment / Debt --------------------------------------------
+export function expenseToRow(e: Expense, userId: string): Row {
+  return {
+    id: e.id,
+    user_id: userId,
+    category: e.category,
+    label: e.label,
+    amount_paise: e.amountPaise,
+    is_essential: e.isEssential,
+    is_recurring: e.isRecurring,
+    period: e.period,
+  };
+}
+
+export function investmentToRow(i: Investment, userId: string): Row {
+  return {
+    id: i.id,
+    user_id: userId,
+    asset_class: i.assetClass,
+    instrument_name: i.instrumentName,
+    current_value_paise: i.currentValuePaise,
+    invested_value_paise: i.investedValuePaise,
+    sip_amount_paise: i.sipAmountPaise,
+    sip_day: i.sipDay,
+    expected_return_pct: i.expectedReturnPct,
+  };
+}
+
+export function debtToRow(d: Debt, userId: string): Row {
+  return {
+    id: d.id,
+    user_id: userId,
+    type: d.type,
+    label: d.label,
+    principal_outstanding_paise: d.principalOutstandingPaise,
+    emi_paise: d.emiPaise,
+    interest_rate: d.interestRate,
+    tenure_months_remaining: d.tenureMonthsRemaining,
+    due_day: d.dueDay,
+  };
+}
+
 export function rowToExpense(r: Row): Expense {
   return {
     id: r.id,

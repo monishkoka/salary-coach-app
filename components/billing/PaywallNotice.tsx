@@ -52,11 +52,14 @@ export function PaywallNotice({ feature, title, body, plan = 'pro' }: PaywallNot
 
       <Button
         label={`Unlock with ${info.name} · ${info.priceLabel}`}
-        onPress={() => setTier(plan)}
+        onPress={() => {
+          analytics.track('subscribe_started', { plan, source: feature });
+          void setTier(plan);
+        }}
         className="mt-2"
       />
       <ThemedText variant="caption" tone="tertiary" className="mt-2 text-center">
-        7-day free trial · cancel anytime
+        Renews monthly · cancel anytime · no data ever sold
       </ThemedText>
     </Card>
   );

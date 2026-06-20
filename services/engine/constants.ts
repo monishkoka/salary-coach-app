@@ -10,7 +10,7 @@
  * in one file — important for trust, compliance review, and investor diligence.
  */
 
-import type { RiskProfile } from '@/types';
+import type { AIContext, RiskProfile } from '@/types';
 
 /** Debt at or above this annual rate (%) is treated as "expensive" and paid before investing. */
 export const HIGH_INTEREST_PCT = 14;
@@ -56,4 +56,23 @@ export const RISK_MIX: Record<RiskProfile, RiskMix> = {
 
 export function riskMix(profile: RiskProfile): RiskMix {
   return RISK_MIX[profile] ?? RISK_MIX.balanced;
+}
+
+/**
+ * Monthly ESSENTIAL spending — the single source of truth for emergency-fund
+ * sizing and any "months of runway" math across the engine.
+ *
+ * The product collects an essential/discretionary flag per expense, but the
+ * `totalExpensesPaise` aggregate lumps both together. Sizing an emergency fund
+ * (or scoring runway) off total spend overstates the buffer a user truly needs
+ * in a crisis — in a job loss you cut discretionary spend first. We therefore
+ * sum only essential line items, falling back to total expenses when no line
+ * items are available (e.g. a profile loaded as aggregates only).
+ */
+export function essentialMonthlyPaise(context: AIContext): number {
+  const essential = context.expenses
+    .filter((e) => e.isEssential)
+    .reduce((s, e) => s + e.amountPaise, 0);
+  if (essential > 0) return essential;
+  return Math.max(0, context.financials.totalExpensesPaise);
 }

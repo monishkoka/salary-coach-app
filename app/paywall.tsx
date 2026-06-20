@@ -61,6 +61,7 @@ export default function PaywallScreen() {
                 variant={isCurrent ? 'secondary' : isPaid ? 'primary' : 'ghost'}
                 disabled={isCurrent}
                 onPress={async () => {
+                  if (isPaid) analytics.track('subscribe_started', { tier: p, source: 'paywall_screen' });
                   await setTier(p);
                   router.back();
                 }}

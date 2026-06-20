@@ -12,7 +12,12 @@ export function SectionHeader({ title, action, className }: SectionHeaderProps) 
     <View className={`mb-3 mt-6 flex-row items-center justify-between ${className ?? ''}`}>
       <ThemedText variant="heading">{title}</ThemedText>
       {action ? (
-        <Pressable onPress={action.onPress}>
+        <Pressable
+          onPress={action.onPress}
+          hitSlop={12}
+          accessibilityRole="button"
+          accessibilityLabel={action.label}
+        >
           <ThemedText variant="label" tone="accent">
             {action.label}
           </ThemedText>

@@ -10,6 +10,8 @@ export function useHaptics() {
   return {
     light: () => safe(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)),
     medium: () => safe(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)),
+    /** The crisp iOS "tick" for selecting chips, tabs, segmented controls. */
+    selection: () => safe(() => Haptics.selectionAsync()),
     success: () =>
       safe(() => Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)),
     warning: () =>

@@ -3,6 +3,7 @@ import { View } from 'react-native';
 import { ThemedText } from '@/components/layout/ThemedText';
 import { Button } from '@/components/buttons/Button';
 import { analytics } from '@/services/analytics';
+import { useTheme } from '@/hooks/useTheme';
 
 interface Props {
   children: ReactNode;
@@ -39,32 +40,33 @@ export class ErrorBoundary extends Component<Props, State> {
 
   override render(): ReactNode {
     if (!this.state.hasError) return this.props.children;
-
-    return (
-      <View
-        style={{
-          flex: 1,
-          alignItems: 'center',
-          justifyContent: 'center',
-          paddingHorizontal: 32,
-          backgroundColor: '#0B0B0F',
-        }}
-      >
-        <ThemedText className="mb-3 text-4xl">😕</ThemedText>
-        <ThemedText variant="heading" className="text-center" style={{ color: '#F7F7F5' }}>
-          Something went wrong
-        </ThemedText>
-        <ThemedText
-          variant="body"
-          className="mt-2 text-center"
-          style={{ color: '#B3B3AF' }}
-        >
-          The app hit an unexpected error. Your data is safe — let’s try that again.
-        </ThemedText>
-        <View className="mt-8 w-full">
-          <Button label="Reload" onPress={this.reset} />
-        </View>
-      </View>
-    );
+    return <ErrorFallback onReset={this.reset} />;
   }
+}
+
+/** Themed fallback so light-mode users don't get a jarring dark crash screen. */
+function ErrorFallback({ onReset }: { onReset: () => void }) {
+  const { colors } = useTheme();
+  return (
+    <View
+      style={{
+        flex: 1,
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingHorizontal: 32,
+        backgroundColor: colors.background,
+      }}
+    >
+      <ThemedText className="mb-3 text-4xl">😕</ThemedText>
+      <ThemedText variant="heading" className="text-center">
+        Something went wrong
+      </ThemedText>
+      <ThemedText variant="body" tone="secondary" className="mt-2 text-center">
+        The app hit an unexpected error. Your data is safe — let’s try that again.
+      </ThemedText>
+      <View className="mt-8 w-full">
+        <Button label="Reload" onPress={onReset} />
+      </View>
+    </View>
+  );
 }

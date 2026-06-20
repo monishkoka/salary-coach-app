@@ -7,12 +7,23 @@
  * rows, so we still scope every query by user_id defensively.
  */
 
-import type { Goal, SalaryBlueprint, UserProfile, FinancialProfile } from '@/types';
+import type {
+  Debt,
+  Expense,
+  FinancialProfile,
+  Goal,
+  Investment,
+  SalaryBlueprint,
+  UserProfile,
+} from '@/types';
 import { getSupabase, isSupabaseConfigured } from '../client';
 import {
   blueprintToRow,
+  debtToRow,
+  expenseToRow,
   financialProfileToRow,
   goalToRow,
+  investmentToRow,
   rowToDebt,
   rowToExpense,
   rowToFinancialProfile,
@@ -100,10 +111,41 @@ export const blueprintRepository = {
   },
 };
 
+export const lineItemRepository = {
+  async upsertExpense(expense: Expense, userId: string): Promise<void> {
+    if (!isSupabaseConfigured) return;
+    const { error } = await getSupabase()
+      .from('expenses')
+      .upsert(expenseToRow(expense, userId), { onConflict: 'id' });
+    if (error) throw error;
+  },
+  async upsertInvestment(investment: Investment, userId: string): Promise<void> {
+    if (!isSupabaseConfigured) return;
+    const { error } = await getSupabase()
+      .from('investments')
+      .upsert(investmentToRow(investment, userId), { onConflict: 'id' });
+    if (error) throw error;
+  },
+  async upsertDebt(debt: Debt, userId: string): Promise<void> {
+    if (!isSupabaseConfigured) return;
+    const { error } = await getSupabase()
+      .from('debts')
+      .upsert(debtToRow(debt, userId), { onConflict: 'id' });
+    if (error) throw error;
+  },
+};
+
 // -----------------------------------------------------------------------------
 // Sync op executor — the offline queue calls this to apply a queued mutation.
 // -----------------------------------------------------------------------------
-export type SyncEntity = 'goal' | 'profile' | 'financials' | 'blueprint';
+export type SyncEntity =
+  | 'goal'
+  | 'profile'
+  | 'financials'
+  | 'blueprint'
+  | 'expense'
+  | 'investment'
+  | 'debt';
 export type SyncOpType = 'upsert' | 'delete';
 
 export interface SyncMutation {
@@ -124,6 +166,12 @@ export async function runSyncMutation(op: SyncMutation): Promise<void> {
       return profileRepository.upsertFinancials(op.payload as FinancialProfile, op.userId);
     case 'blueprint':
       return blueprintRepository.upsert(op.payload as SalaryBlueprint, op.userId);
+    case 'expense':
+      return lineItemRepository.upsertExpense(op.payload as Expense, op.userId);
+    case 'investment':
+      return lineItemRepository.upsertInvestment(op.payload as Investment, op.userId);
+    case 'debt':
+      return lineItemRepository.upsertDebt(op.payload as Debt, op.userId);
     default:
       return;
   }

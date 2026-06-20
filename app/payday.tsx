@@ -17,10 +17,12 @@ import { useFinancialPlan } from '@/hooks/useFinancialPlan';
 import { useHaptics } from '@/hooks/useHaptics';
 import { useTheme } from '@/hooks/useTheme';
 import { formatINR, formatINRCompact } from '@/utils/currency';
+import { daysUntilDayOfMonth } from '@/utils/date';
 import { analytics } from '@/services/analytics';
 
 export default function PaydayScreen() {
   const loaded = useProfileStore((s) => s.loaded);
+  const user = useProfileStore((s) => s.user);
   const financials = useProfileStore((s) => s.financials);
   const blueprint = useBlueprintStore((s) => s.blueprint);
   const generate = useBlueprintStore((s) => s.generate);
@@ -28,21 +30,36 @@ export default function PaydayScreen() {
   const haptics = useHaptics();
   const { colors } = useTheme();
 
+  // Only treat this as the celebratory "salary just landed" moment when it
+  // actually is payday — otherwise this screen is a calm plan review.
+  const daysToPayday = user?.payDayOfMonth ? daysUntilDayOfMonth(user.payDayOfMonth) : null;
+  const isPayday = daysToPayday === 0;
+
   useEffect(() => {
     if (loaded && !blueprint) generate();
   }, [loaded, blueprint, generate]);
 
   useEffect(() => {
-    haptics.success();
-    analytics.track('payday_celebrated');
+    // Reserve the success "confetti" haptic for the genuine payday moment.
+    if (isPayday) haptics.success();
+    else haptics.light();
+    analytics.track('payday_celebrated', { isPayday });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [isPayday]);
 
   if (!loaded || !financials || !blueprint) return <LoadingState label="Preparing your plan…" />;
 
   const lines = blueprint.allocations.filter((a) => a.amountPaise > 0);
   const projected = plan?.scenarios.find((s) => s.id === 'current')?.netWorthAt.y5 ?? 0;
   const projectedYear = new Date().getFullYear() + 5;
+
+  const heroEyebrow = isPayday ? '🎉' : '🧭';
+  const heroTitle = isPayday ? 'Salary received' : 'Your salary plan';
+  const heroSub = isPayday
+    ? "Here's exactly what to do with it"
+    : daysToPayday != null
+      ? `Payday in ${daysToPayday} ${daysToPayday === 1 ? 'day' : 'days'} — here's the plan`
+      : "Here's how to put your salary to work";
 
   return (
     <Screen contentClassName="px-5 pb-16">
@@ -55,15 +72,15 @@ export default function PaydayScreen() {
           end={{ x: 1, y: 1 }}
           style={{ borderRadius: 28, padding: 24, alignItems: 'center' }}
         >
-          <ThemedText className="text-5xl">🎉</ThemedText>
+          <ThemedText className="text-5xl">{heroEyebrow}</ThemedText>
           <ThemedText variant="heading" style={{ color: '#FFFFFF' }} className="mt-2">
-            Salary Received
+            {heroTitle}
           </ThemedText>
           <ThemedText variant="title" style={{ color: '#FFFFFF' }} className="mt-1">
             {formatINR(financials.monthlyIncomePaise)}
           </ThemedText>
           <ThemedText variant="caption" style={{ color: 'rgba(255,255,255,0.85)' }} className="mt-1">
-            Here’s exactly what to do with it
+            {heroSub}
           </ThemedText>
         </LinearGradient>
       </Animated.View>
@@ -116,8 +133,14 @@ export default function PaydayScreen() {
       ) : null}
 
       <View className="mt-6 gap-3">
-        <Button label="Lock in this plan" onPress={() => router.replace('/(tabs)')} />
-        <Button label="Ask my coach first" variant="ghost" onPress={() => router.replace('/(tabs)/coach')} />
+        <Button
+          label={isPayday ? 'Lock in this plan' : 'Got it'}
+          onPress={() => {
+            haptics.success();
+            router.replace('/(tabs)');
+          }}
+        />
+        <Button label="Ask my coach first" variant="ghost" onPress={() => router.push('/(tabs)/coach')} />
       </View>
     </Screen>
   );

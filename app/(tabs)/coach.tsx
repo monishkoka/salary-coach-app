@@ -8,6 +8,7 @@ import { ChatComposer } from '@/components/coach/ChatComposer';
 import { SuggestionChips } from '@/components/coach/SuggestionChips';
 import { useCoachStore } from '@/store/coachStore';
 import { useTheme } from '@/hooks/useTheme';
+import { useScreenView } from '@/hooks/useScreenView';
 import { COACH_SUGGESTED_PROMPTS } from '@/constants/copy';
 import type { ChatMessage } from '@/types';
 
@@ -17,9 +18,12 @@ export default function Coach() {
   const sending = useCoachStore((s) => s.sending);
   const error = useCoachStore((s) => s.error);
   const send = useCoachStore((s) => s.send);
+  const retry = useCoachStore((s) => s.retry);
+  const retryText = useCoachStore((s) => s.retryText);
   const limitReached = useCoachStore((s) => s.limitReached);
   const remaining = useCoachStore((s) => s.remainingMessages());
   const listRef = useRef<FlatList<ChatMessage>>(null);
+  useScreenView('coach');
 
   const showRemaining = Number.isFinite(remaining) && !limitReached;
 
@@ -57,9 +61,27 @@ export default function Coach() {
         />
 
         {error ? (
-          <ThemedText variant="caption" className="px-5 pb-1" style={{ color: colors.risk }}>
-            {error}
-          </ThemedText>
+          <View className="mx-4 mb-2 flex-row items-center justify-between rounded-2xl px-4 py-3"
+            style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.risk }}
+          >
+            <ThemedText variant="caption" className="flex-1 pr-3" style={{ color: colors.risk }}>
+              {error}
+            </ThemedText>
+            {retryText ? (
+              <Pressable
+                onPress={retry}
+                accessibilityRole="button"
+                accessibilityLabel="Retry sending your message"
+                hitSlop={8}
+                className="rounded-full px-3 py-2"
+                style={{ backgroundColor: colors.accentSoft }}
+              >
+                <ThemedText variant="caption" tone="accent" className="font-semibold">
+                  Try again
+                </ThemedText>
+              </Pressable>
+            ) : null}
+          </View>
         ) : null}
 
         {limitReached ? (

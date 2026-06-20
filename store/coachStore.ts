@@ -17,7 +17,11 @@ interface CoachState {
   sentThisMonth: number;
   /** Set when the user hits their plan's monthly message limit. */
   limitReached: boolean;
+  /** Last user message that failed to send, so the UI can offer a one-tap retry. */
+  retryText: string | null;
   send: (text: string) => Promise<void>;
+  /** Re-send the last message that failed. */
+  retry: () => Promise<void>;
   remainingMessages: () => number;
   reset: () => void;
 }
@@ -46,6 +50,7 @@ export const useCoachStore = create<CoachState>()(
       quotaMonth: monthKey(),
       sentThisMonth: 0,
       limitReached: false,
+      retryText: null,
 
       remainingMessages: () => {
         const limit = useSubscriptionStore.getState().entitlements.coachMessagesPerMonth;
@@ -77,6 +82,7 @@ export const useCoachStore = create<CoachState>()(
             limitReached: true,
             error: `You've used your ${limit} free coach messages this month. Upgrade to Pro for unlimited coaching.`,
           });
+          analytics.track('coach_quota_reached', { limit });
           analytics.track('paywall_viewed', { source: 'coach_quota' });
           return;
         }
@@ -102,6 +108,7 @@ export const useCoachStore = create<CoachState>()(
           sending: true,
           error: null,
           limitReached: false,
+          retryText: null,
           quotaMonth: thisMonth,
           sentThisMonth: sent,
         });
@@ -131,16 +138,40 @@ export const useCoachStore = create<CoachState>()(
             sending: false,
             sentThisMonth: get().sentThisMonth + 1,
           });
+          analytics.track('coach_message_succeeded', { tool: res.toolName ?? null });
         } catch {
+          // Drop the typing bubble AND the just-added user bubble, and stash the
+          // text so the UI can offer a clean one-tap retry without a dangling
+          // message. The quota is NOT consumed on failure.
           set({
-            messages: get().messages.filter((m) => !m.pending),
+            messages: get().messages.filter((m) => !m.pending && m.id !== userMsg.id),
             sending: false,
-            error: 'The coach is unavailable right now. Please try again.',
+            error: 'The coach is unavailable right now.',
+            retryText: trimmed,
           });
+          analytics.track('coach_message_failed');
         }
       },
 
-      reset: () => set({ messages: [WELCOME], error: null, sending: false, limitReached: false }),
+      retry: async () => {
+        const text = get().retryText;
+        if (!text) return;
+        set({ retryText: null, error: null });
+        await get().send(text);
+      },
+
+      reset: () =>
+        set({
+          messages: [WELCOME],
+          error: null,
+          sending: false,
+          limitReached: false,
+          retryText: null,
+          // Zero the monthly quota counter too — it is persisted, so leaving it
+          // set would carry one account's usage/paywall state into the next.
+          quotaMonth: monthKey(),
+          sentThisMonth: 0,
+        }),
     }),
     {
       name: 'sc:coach',

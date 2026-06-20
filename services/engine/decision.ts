@@ -21,6 +21,7 @@ import type {
 } from '@/types';
 import { emi, lumpSumFutureValue, clamp } from '@/utils/finance';
 import { formatINR, formatINRCompact } from '@/utils/currency';
+import { essentialMonthlyPaise } from './constants';
 
 const EMI_TENURE_MONTHS = 36;
 const EMI_RATE_PCT = 11; // representative consumer-loan rate
@@ -104,7 +105,7 @@ export function evaluateDecision(
   };
 
   // --- Dimension 3: emergency fund safety -----------------------------------
-  const monthlyEssential = Math.max(1, financials.totalExpensesPaise);
+  const monthlyEssential = Math.max(1, essentialMonthlyPaise(context));
   // Cash beyond the emergency buffer is "free" to spend; anything more eats into it.
   const freeCashPaise = Math.max(0, financials.totalSavingsPaise - financials.emergencyFundPaise);
   const dipsIntoEmergency = financing === 'cash' && costPaise > freeCashPaise;

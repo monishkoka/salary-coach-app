@@ -1,6 +1,7 @@
 import { type ReactNode } from 'react';
 import { Pressable, View, type ViewProps } from 'react-native';
 import { useTheme } from '@/hooks/useTheme';
+import { useHaptics } from '@/hooks/useHaptics';
 import { shadow } from '@/constants/theme';
 import { cn } from '@/utils/cn';
 
@@ -27,6 +28,7 @@ export function Card({
   ...rest
 }: CardProps) {
   const { colors, isDark } = useTheme();
+  const haptics = useHaptics();
   const elevate = !inset && !flat;
   const body = (
     <View
@@ -49,7 +51,10 @@ export function Card({
   if (!onPress) return body;
   return (
     <Pressable
-      onPress={onPress}
+      onPress={() => {
+        haptics.light();
+        onPress();
+      }}
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel}
       style={({ pressed }) => ({ opacity: pressed ? 0.9 : 1 })}

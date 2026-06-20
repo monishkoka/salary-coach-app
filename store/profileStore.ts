@@ -37,6 +37,8 @@ interface ProfileState {
   scores: FinancialScores | null;
 
   load: () => Promise<void>;
+  /** Force a re-fetch of the signed-in user's data from the backend (pull-to-refresh). */
+  refresh: () => Promise<void>;
   recomputeScores: () => void;
   getContext: () => AIContext | null;
 
@@ -79,8 +81,17 @@ export const useProfileStore = create<ProfileState>()(
       ...EMPTY_PROFILE,
 
       load: async () => {
-        // If we already have persisted data (user completed onboarding on a
-        // previous launch, or signed in), keep it — never clobber real data.
+        const authUserId = useAuthStore.getState().userId;
+        // Defensive per-user isolation: if persisted data belongs to a different
+        // account than the one signed in (e.g. incomplete teardown on a shared
+        // device), discard it before doing anything else. Never show one user
+        // another user's finances.
+        const persisted = get().user;
+        if (!config.useMockData && persisted && authUserId && persisted.id !== authUserId) {
+          set({ ...EMPTY_PROFILE });
+        }
+        // If we already have persisted data for THIS user, keep it — never
+        // clobber real data.
         if (get().user && get().financials) {
           get().recomputeScores();
           set({ loaded: true });
@@ -125,6 +136,32 @@ export const useProfileStore = create<ProfileState>()(
         }
         set({ loaded: true });
       },
+
+  refresh: async () => {
+    // Mock mode has no backend to pull from — just recompute from local state.
+    if (config.useMockData) {
+      get().recomputeScores();
+      return;
+    }
+    const userId = useAuthStore.getState().userId;
+    if (!userId) return;
+    try {
+      const snap = await fetchFullProfile(userId);
+      if (snap) {
+        set({
+          user: snap.user,
+          financials: snap.financials,
+          goals: snap.goals,
+          expenses: snap.expenses,
+          investments: snap.investments,
+          debts: snap.debts,
+        });
+        get().recomputeScores();
+      }
+    } catch {
+      // Keep current state on a transient network error.
+    }
+  },
 
   recomputeScores: () => {
     const ctx = buildContext(get());
@@ -195,28 +232,49 @@ export const useProfileStore = create<ProfileState>()(
       },
     };
 
+    // Build a clean profile from the user's own onboarding answers. We never
+    // spread the demo persona here — that previously leaked fields like
+    // "priya@example.com" into real production accounts.
     const user: UserProfile = {
-      ...mockUser,
-      ...payload.user,
       id: userId,
+      email: payload.user.email ?? null,
+      displayName: payload.user.displayName ?? '',
+      age: payload.user.age ?? null,
+      maritalStatus: payload.user.maritalStatus ?? null,
+      dependents: payload.user.dependents ?? {},
       riskProfile: payload.riskProfile,
+      salaryDnaArchetype: payload.user.salaryDnaArchetype ?? null,
+      taxRegime: payload.user.taxRegime ?? 'new',
+      payDayOfMonth: payload.user.payDayOfMonth ?? null,
+      city: payload.user.city ?? null,
+      subscriptionTier: payload.user.subscriptionTier ?? 'free',
+      onboardingCompletedAt: new Date().toISOString(),
+      currency: payload.user.currency ?? 'INR',
     };
+    const expenses = payload.expenses.map((e) => ({ ...e, userId }));
+    const investments = payload.investments.map((i) => ({ ...i, userId }));
+    const debts = payload.debts.map((d) => ({ ...d, userId }));
     const goals = payload.goals.map((g) => ({ ...g, userId }));
 
     set({
       loaded: true,
       user,
       financials,
-      expenses: payload.expenses,
-      investments: payload.investments,
-      debts: payload.debts,
+      expenses,
+      investments,
+      debts,
       goals,
     });
     get().recomputeScores();
 
-    // Persist the freshly onboarded picture (no-ops in mock mode).
+    // Persist the freshly onboarded picture (no-ops in mock mode). Line-item
+    // data (expenses/investments/debts) is synced too so a reinstall or new
+    // device restores the full picture, not just the aggregates.
     void enqueueSync({ entity: 'profile', type: 'upsert', userId, payload: user });
     void enqueueSync({ entity: 'financials', type: 'upsert', userId, payload: financials });
+    expenses.forEach((e) => void enqueueSync({ entity: 'expense', type: 'upsert', userId, payload: e }));
+    investments.forEach((i) => void enqueueSync({ entity: 'investment', type: 'upsert', userId, payload: i }));
+    debts.forEach((d) => void enqueueSync({ entity: 'debt', type: 'upsert', userId, payload: d }));
     goals.forEach((g) => void enqueueSync({ entity: 'goal', type: 'upsert', userId, payload: g }));
   },
 

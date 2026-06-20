@@ -28,6 +28,7 @@ import {
   EMERGENCY_MAX_SURPLUS_SHARE,
   GOAL_BUDGET_SURPLUS_SHARE,
   HIGH_INTEREST_PCT,
+  essentialMonthlyPaise,
   riskMix,
 } from './constants';
 
@@ -84,7 +85,9 @@ export function generateBlueprint(
   }
 
   // 3) Emergency fund ---------------------------------------------------------
-  const monthlyEssential = essentialNeeds || Math.round(income * 0.5);
+  // Size the buffer against ESSENTIAL spend (what you must cover in a crisis),
+  // not total spend — discretionary spend is the first thing cut in a job loss.
+  const monthlyEssential = essentialMonthlyPaise(context) || Math.round(income * 0.5);
   const emergencyTarget = monthlyEssential * financials.emergencyMonthsTarget;
   const emergencyGap = Math.max(0, emergencyTarget - financials.emergencyFundPaise);
   if (emergencyGap > 0 && remaining > 0) {

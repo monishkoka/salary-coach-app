@@ -25,7 +25,7 @@ import type {
 } from '@/types';
 import { clamp, monthsToTarget } from '@/utils/finance';
 import { formatINRCompact } from '@/utils/currency';
-import { riskMix } from './constants';
+import { essentialMonthlyPaise, riskMix } from './constants';
 
 const MAX_MONTHS = 600;
 const DEFAULT_AGE = 30;
@@ -373,8 +373,8 @@ function buildRoute(context: AIContext, kind: RouteKind): GpsRoute {
   );
   const netWorth10y = points[0]?.netWorthPaise ?? 0;
 
-  // Emergency fund completion.
-  const monthlyEssential = Math.max(1, context.financials.totalExpensesPaise);
+  // Emergency fund completion (sized against essential spend).
+  const monthlyEssential = Math.max(1, essentialMonthlyPaise(context));
   const emergencyTarget = monthlyEssential * context.financials.emergencyMonthsTarget;
   const emergencyGap = Math.max(0, emergencyTarget - context.financials.emergencyFundPaise);
   const emergencyMonths =

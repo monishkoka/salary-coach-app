@@ -26,7 +26,11 @@ export function useBootstrap(): { ready: boolean } {
       // Ensure the persisted profile is rehydrated from disk BEFORE load() runs,
       // otherwise load() would seed mock data over the user's real saved data.
       await useProfileStore.persist.rehydrate?.();
-      await Promise.all([hydrateTheme(), initAuth(), loadProfile(), hydrateSubscription()]);
+      // Auth must resolve BEFORE the profile loads: load() scopes its fetch and
+      // its per-user integrity check to the signed-in userId. Running them in
+      // parallel can leave the profile unfetched (userId still null) with no retry.
+      await Promise.all([hydrateTheme(), initAuth(), hydrateSubscription()]);
+      await loadProfile();
       // Rehydrate memory history from disk, then capture this month's snapshot
       // so the coach's financial memory always reflects the latest picture.
       await useMemoryStore.persist.rehydrate?.();

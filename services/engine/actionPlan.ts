@@ -17,6 +17,7 @@ import {
   SAVINGS_RATE_FLOOR_PCT,
   SAVINGS_RATE_TARGET_PCT,
   SIP_TARGET_PCT,
+  essentialMonthlyPaise,
 } from './constants';
 
 const HIGH_INTEREST = HIGH_INTEREST_PCT;
@@ -56,7 +57,7 @@ function collectItems(context: AIContext): ActionPlanItem[] {
   }
 
   // 2) Emergency fund gap.
-  const monthlyEssential = Math.max(1, financials.totalExpensesPaise);
+  const monthlyEssential = Math.max(1, essentialMonthlyPaise(context));
   const emergencyTarget = monthlyEssential * financials.emergencyMonthsTarget;
   const emergencyGap = Math.max(0, emergencyTarget - financials.emergencyFundPaise);
   if (emergencyGap > 0) {
@@ -158,7 +159,7 @@ function detectBiggestMistake(context: AIContext): ActionPlan['biggestMistake'] 
   }
 
   // Idle cash beyond a healthy buffer.
-  const monthlyEssential = Math.max(1, financials.totalExpensesPaise);
+  const monthlyEssential = Math.max(1, essentialMonthlyPaise(context));
   const idle = financials.totalSavingsPaise - monthlyEssential * financials.emergencyMonthsTarget;
   if (idle > monthlyEssential * 2) {
     return {
